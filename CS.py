@@ -114,7 +114,7 @@ def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,out
         High_mat = High_passed
     # U'n'Eye
     model = uneye.DNN(ks=ks,mp=mp,classes=2,
-                  weights_name=weights_name,sampfreq=sampling_frequency,min_sacc_dur=1)
+                  weights_name=weights_name,sampfreq=sampling_frequency,min_sacc_dur=1,doDiff = False)
     Pred,Prob = model.predict(LFP_mat,High_mat)
     
     if np.max(LFP.shape)>trial_length:
