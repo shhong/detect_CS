@@ -1,28 +1,37 @@
-
+Path_to_UnEye_folder = '/gdrive/My Drive/uneye/'
+# go to the uneye folder
 import os
+os.chdir(Path_to_UnEye_folder)
+
+## install dependencies
+
+
+# to do deep learning
+# http://pytorch.org/
 from os.path import exists
+from wheel.pep425tags import get_abbr_impl, get_impl_ver, get_abi_tag
+platform = '{}{}-{}'.format(get_abbr_impl(), get_impl_ver(), get_abi_tag())
+cuda_output = !ldconfig -p|grep cudart.so|sed -e 's/.*\.\([0-9]*\)\.\([0-9]*\)$/cu\1\2/'
+accelerator = cuda_output[0] if exists('/dev/nvidia0') else 'cpu'
+
+!pip install -q http://download.pytorch.org/whl/{accelerator}/torch-0.4.1-{platform}-linux_x86_64.whl torchvision
 import torch
 
 # to read .mat files
+!pip install mat4py
 import mat4py
 
 # to read .pkl files
-from all_imports import *
 import pandas as pd
 
 # to do math operations
 import numpy as np
 import scipy.io as io
-
-# to find peaks in signal
-from scipy import signal as signal
-
 # To use the network
 import uneye
 
 # to get list of files
 from glob import glob as dir
-
 # to do dimensionality reduction
 
 import umap
@@ -39,7 +48,7 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 
-
+    
 def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,output_name = 'same',extention = 'same',plot = False, plot_only_good = True, save = True, sampling_frequency = 25000, ks=9,mp=9, realign = True, cluster = True,alignment_w = (-.5,2),cluster_w = (-2,2),plot_w= (-4,8)):
     # important aguments:
     # -filename is the filename path. If it is not defined then you should input the LFP and the High-passed signal
