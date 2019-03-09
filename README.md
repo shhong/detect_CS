@@ -1,4 +1,4 @@
-# cs_detect
+# Detecting complex spikes in extracellular recording  
 Deep learning based detection of complex spikes
 
 Step 1) Intalling the software (you need to do this step only once)  
