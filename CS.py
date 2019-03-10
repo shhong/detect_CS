@@ -131,14 +131,14 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
 
     samp  = int(sampling_frequency/1000) # Khz
     
-    if len(LFP)==0 or len(High_passed)==0:
+    if len(LFP)==0 or len(High_passed)==0: # if one signal is missing abort
         labels = {'cs_onset': [],
                    'cs_offset': [],
                    'cluster_ID': [],
                  'embedding': []}
         if save == True:
-            print('saving '+output_name+extention+'.mat')
-            io.savemat(output_name+extention+'.mat',labels)
+            print('saving '+output_file)
+            save_data(output_name,labels) 
         return([],[],[],[])
     
     trial_length = 1 #sec, length per "trial"
@@ -201,8 +201,8 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
         labels = {'cs_onset':cs_onset,
                    'cs_offset':cs_offset}
         if save == True:
-            print('saving '+output_name+extention+'.mat')
-            io.savemat(output_name+extention+'.mat',labels)
+            print('saving '+output_file)
+            save_data(output_name,labels) 
         return(cs_onset,cs_offset)
     
     alignment_window = (np.array([sampling_frequency*alignment_w[0],sampling_frequency*alignment_w[1]])/1000).astype(int) # 2 ms to realign CS onset
@@ -243,8 +243,8 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
             labels = {'cs_onset':cs_onset,
                      'cs_offset':cs_offset}
             if save == True:
-                print('saving '+output_name+extention+'.mat')
-                io.savemat(output_name+extention+'.mat',labels)  
+                print('saving '+output_file)
+                save_data(output_name,labels) 
             return(cs_onset,cs_offset)
         
         average_CS2 = np.zeros((len(cs_onset),cluster_window[1]-cluster_window[0])) 
@@ -285,17 +285,17 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                 ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS_plot[z,:],c = 'k',Linewidth = 0.1)
                 ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z,:],c = 'k',Linewidth = 0.1)
             plt.show()
-            fig.savefig('realignment.pdf')
+            #fig.savefig('realignment.pdf')
         # dimensionality reduction using UMAP
         n_neighbors = 15
-        if np.shape(average_CS2)[0]<n_neighbors: # exit if the neumber of complex spike detected is too small
+        if np.shape(average_CS2)[0]<n_neighbors: # exit if the number of complex spike detected is too small
           labels = {'cs_onset': [],
                    'cs_offset': [],
                    'cluster_ID': [],
                  'embedding': []}
           if save == True:
-            print('saving '+output_name+extention+'.mat')
-            io.savemat(output_name+extention+'.mat',labels)
+            print('saving '+output_name)
+            save_data(output_name,labels)
             return([],[],[],[])
             return
         embedding = umap.UMAP(n_neighbors = n_neighbors , min_dist=0.00001) 
@@ -335,9 +335,11 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                         for z in u:
                             ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i], Linewidth = 0.1)
                             ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i], Linewidth = 0.1)
-                        
-                        ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                        ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                            ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                                      np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                       
+                        ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                                 np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
                         ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_prob[labels_big==lab,:],axis = 0), c = colors[i])
                 else:
                     u = np.argwhere(labels_big==lab)
@@ -346,9 +348,12 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                         ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i],Linewidth = 0.1)
                         ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i],Linewidth = 0.1)
                     
-                    ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                    ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                    ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_prob[labels_big==lab,:],axis = 0),c = colors[i])
+                    ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                             np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                    ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                             np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                    ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                             np.mean(average_prob[labels_big==lab,:],axis = 0),c = colors[i])
                       
         if plot:    
             xlabel('time from CS onset (ms)',fontsize=15)
@@ -361,7 +366,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
             ax2.set_facecolor('none')
             ax2.axis(ymin=0,ymax=1.01)
             plt.show()
-            fig.savefig('example.pdf')
+            #fig.savefig('example.pdf')
         
         fig = plt.figure()
         for i,lab in enumerate(np.unique(labels_big)):
@@ -371,7 +376,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                         plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
                 else:
                     plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
-        fig.savefig('dimensionality_reduction.pdf')
+        #fig.savefig('dimensionality_reduction.pdf')
         cs_onset = corrected_on[include];
         cs_offset = cs_offset[include]
         
@@ -384,16 +389,16 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                  'embedding': embedding[include,:]}
         if save == True:
             print('saving '+output_name)
-            io.savemat(output_name,labels)
+            save_data(output_name,labels)
         return(cs_onset,cs_offset,labels_big[include],embedding[include,:])
     else:
-        labels = {'cs_onset': [],
+        if save == True:
+            labels = {'cs_onset': [],
                    'cs_offset': [],
                    'cluster_ID': [],
                  'embedding': []}
-        if save == True:
             print('saving '+output_name)
-            save_data(output_file,labels):
+            save_data(output_name,labels)
         return([],[],[],[])
     
     
