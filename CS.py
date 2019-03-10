@@ -34,8 +34,93 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 
 
+
+def get_field_mat(data,fields): # go through structure in a .mat file to find the variable
+    if len(fields) > 0:
+        for i,field in enumerate(fields):
+            data = data[field]
+        return(data)
+    else :
+        return([])
+      
+      
+def get_field_pkl(df,field): # get the variable in a panda dataframe
+    if field != None:
+        data = np.array(df[field])
+    else:
+        data = None
+    return(data)
+  
+  
+def list2array(mylist): # convert a list into an array of segments of equal length
+    if len(mylist) > 0:
+        types = [hasattr(mylist[i],"__len__") for i in range(len(mylist))]
+        if all(types) == 0: #surely a vector
+            myarray = np.asarray(mylist)
+        else:
+            dur = [len(mylist[i]) for i in range(len(mylist))]
+            mindur = min(dur)
+            myarray = np.zeros((len(mylist),mindur))
+            for i in range(len(mylist)):
+                myarray[i,:] = mylist[i][:mindur]
+    else:
+        myarray = []
+    return(myarray)
+  
+  
+def norm_LFP(LFP): # normalise the LFP for the network
+    if len(LFP) > 0:
+        
+        types = [hasattr(LFP[i],"__len__") for i in range(len(LFP))]
+        if all(types) == 0 : #surely a vector
+            LFP = np.asarray(LFP)
+            LFP = LFP-np.median(LFP)
+            LFP = LFP/np.median(np.abs(LFP))
+        else:
+            # normalise LFP as a multiple of absolute median
+            LFP = [i-np.median(i) for i in LFP ]
+            LFP = [i/np.median(np.abs(i)) for i in LFP ]
+    else:
+        LFP = []     
+    return(LFP)
     
-def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,output_name = 'same',extention = 'same',plot = False, plot_only_good = True, save = True, sampling_frequency = 25000, ks=9,mp=9, realign = True, cluster = True,alignment_w = (-.5,2),cluster_w = (-2,2),plot_w= (-4,8)):
+def load_data(filename = [],field_LFP = [],field_high_pass = [], field_label = []):
+    # loads the data for .mat .pkl or .csv
+    if len(filename) == 0:
+        filename = field_LFP
+    filename_start, file_extension = os.path.splitext(filename)
+    if file_extension == '.pkl':
+        df = pd.read_pickle(filename)
+        LFP = list2array(norm_LFP(get_field_pkl(df,field_LFP)))
+        high_pass = list2array(get_field_pkl(df,field_high_pass))
+        Label = list2array(get_field_pkl(df,field_label))
+    elif file_extension == '.mat':
+        data = mat4py.loadmat(filename)
+        LFP = list2array(norm_LFP(get_field_mat(data,field_LFP)))
+        high_pass = list2array(get_field_mat(data,field_high_pass))
+        Label = list2array(get_field_mat(data,field_label))
+    elif file_extension == '.csv':
+        LFP = list2array(norm_LFP(np.loadtxt(field_LFP,delimiter=',')))
+        high_pass = list2array(np.loadtxt(field_high_pass,delimiter=','))
+        Label = list2array(np.loadtxt(field_label,delimiter=','))
+    return(LFP,high_pass,Label)
+
+def save_data(output_file,labels):
+    filename_start, file_extension = os.path.splitext(output_file)
+    if file_extension == '.pkl':
+        df = pd.DataFrame(labels)
+        df.to_pkl(output_file,labels)
+    elif file_extension == '.mat':
+        io.savemat(output_file,labels)
+    elif file_extension == '.csv':
+        df = pd.DataFrame(labels)
+        df.to_csv(output_file,labels)
+    elif file_extension == '.h5' :
+        df = pd.DataFrame(labels)
+        df.to_hdf(output_file, key='df', mode='w')
+        
+        
+def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False, plot_only_good = True, save = True, sampling_frequency = 25000, ks=9,mp=7, realign = True, cluster = True,alignment_w = (-.5,2),cluster_w = (-2,2),plot_w= (-4,8)):
     # important aguments:
     # -filename is the filename path. If it is not defined then you should input the LFP and the High-passed signal
     # -weights_name is the path of the weight or just the name of the weight if it is stored in /training
@@ -44,28 +129,8 @@ def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,out
     if plot:
         cmap = plt.get_cmap('jet')
 
-    
     samp  = int(sampling_frequency/1000) # Khz
-    if filename != None:
-        if output_name == 'same':
-            output_name = filename[:-4]
-            extention = '_predicted_CS_time_from_LFP_and_volt' # You can modify this
-        # load data
-        data = mat4py.loadmat(filename)
-        try:
-            # High passed signal
-            High_passed = data['Data']['PC_Volt'] 
-        except:
-            # High passed signal
-            High_passed = data['Data']['PC_Volt_Trace']    
-        # LFP signal
-        LFP = data['Data']['LFP']
-        
-        High_passed = np.asarray(High_passed)
-        LFP = np.asarray(LFP)
-    else:
-        High_passed = High_passed 
-        LFP = LFP
+    
     if len(LFP)==0 or len(High_passed)==0:
         labels = {'cs_onset': [],
                    'cs_offset': [],
@@ -318,8 +383,8 @@ def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,out
                    'cluster_ID': labels_big[include],
                  'embedding': embedding[include,:]}
         if save == True:
-            print('saving '+output_name+extention+'.mat')
-            io.savemat(output_name+extention+'.mat',labels)
+            print('saving '+output_name)
+            io.savemat(output_name,labels)
         return(cs_onset,cs_offset,labels_big[include],embedding[include,:])
     else:
         labels = {'cs_onset': [],
@@ -327,8 +392,8 @@ def detect_CS(weights_name, filename = None, LFP = None, High_passed = None ,out
                    'cluster_ID': [],
                  'embedding': []}
         if save == True:
-            print('saving '+output_name+extention+'.mat')
-            io.savemat(output_name+extention+'.mat',labels)
+            print('saving '+output_name)
+            save_data(output_file,labels):
         return([],[],[],[])
     
     
