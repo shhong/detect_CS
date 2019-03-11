@@ -3,7 +3,7 @@ Deep learning based detection of complex spikes
 
 The scripts are written in colaboratory: 
 https://research.google.com/colaboratory/faq.html  
-This enables simple installation because it works online
+This enables simple installation because it works online  
 Also we can use the GPUs that google freely provides  
 
 Step 1) Intalling the software (you need to do this step only once)  
