@@ -5,6 +5,7 @@ The scripts are written in colaboratory:
 https://research.google.com/colaboratory/faq.html  
 This enables simple installation because it works online  
 Also we can use the GPUs that google freely provides  
+The only drawback is that you need a google drive with enough storage to host your data
 
 ## Installation:  
 Step 1) Intalling the software (you need to do this step only once)  
