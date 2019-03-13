@@ -119,8 +119,8 @@ def save_data(output_file,labels):
         df.to_hdf(output_file, key='df', mode='w')
         
         
-def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False, plot_only_good = True, save = True, sampling_frequency = 25000, ks=9,mp=7, realign = True, cluster = True,alignment_w = (-.5,2),cluster_w = (-2,2),plot_w= (-4,8)):
-    # important aguments:
+def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good = True, sampling_frequency = 25000, ks=9,mp=7, realign = True, alignment_w = (-.5,2), cluster = True, cluster_w = (-2,2),plot = False, plot_w= (-4,8), exlude_w = 3):
+    # important arguments:
     # -filename is the filename path. If it is not defined then you should input the LFP and the High-passed signal
     # -weights_name is the path of the weight or just the name of the weight if it is stored in /training
     # -sampling_frequency is the sampling frequency of the signal analysed
@@ -135,7 +135,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
                    'cs_offset': [],
                    'cluster_ID': [],
                  'embedding': []}
-        if save == True:
+        if output_name != None:
             print('saving '+output_file)
             save_data(output_name,labels) 
         return([],[],[],[])
@@ -195,209 +195,220 @@ def detect_CS(weights_name, LFP, High_passed, output_name = 'same',plot = False,
         Probability = Prob
     cs_onset=np.argwhere(np.diff(Prediction)==1);
     cs_offset=np.argwhere(np.diff(Prediction)==-1);
-    
+    max_prob = np.zeros((len(cs_onset),1))
+    for i,j in enumerate(corrected_on):
+        ind = int(j)
+        max_prob[i] = average_prob[ind+veto_wind[0]:ind+veto_wind[1]]
     if cluster ==False & realign==False: # stop early if everything that is needed is the raw output from the network
         labels = {'cs_onset':cs_onset,
                    'cs_offset':cs_offset}
-        if save == True:
+        if output_name != None:
             print('saving '+output_file)
             save_data(output_name,labels) 
-        return(cs_onset,cs_offset)
+        return(labels)
     
     alignment_window = (np.array([sampling_frequency*alignment_w[0],sampling_frequency*alignment_w[1]])/1000).astype(int) # 2 ms to realign CS onset
     cluster_window = (np.array([sampling_frequency*cluster_w[0],sampling_frequency*cluster_w[1]])/1000).astype(int)  # consider the first 2 ms after CS onset for clustering
     plot_window = (np.array([sampling_frequency*plot_w[0],sampling_frequency*plot_w[1]])/1000).astype(int) # plot between 4 ms before and 8 ms after CS onset
     
+    veto_wind = [-10,10] #exlude CS detected around 10ms from the boundary of the signal
+    veto_wind = [min(veto_wind[0],plot_w[0]),max(plot_w[1],veto_wind[1])]
     # remove CS detected to close from the edges of the signal
-    cs_offset = cs_offset[(cs_onset>sampling_frequency*(-plot_w[0])/1000)& (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
-    cs_onset = cs_onset[(cs_onset>sampling_frequency*(-plot_w[0])/1000)& (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
+    cs_offset = cs_offset[(cs_onset>sampling_frequency*(-plot_w[0])/1000) & (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
+    cs_onset = cs_onset[(cs_onset>sampling_frequency*(-plot_w[0])/1000) & (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
 
-    if len(cs_onset)>0:
-        ######################################## 
-        # post processing
-        ########################################
-        
-        
-
-        # align each complex spike to the overall average
-        
-        average_CS = np.zeros((len(cs_onset),alignment_window[1]-alignment_window[0]))
-        for i,j in enumerate(cs_onset):
-            average_CS[i,:]=High_passed[j+alignment_window[0]:j+alignment_window[1]]
-        
-        norm_signal = np.median(np.abs(High_passed))/0.6745
-        corrected_on=np.zeros((len(cs_onset),1))
-        
-        if realign:
-            for i,j in enumerate(cs_onset):
-                
-                c=np.correlate(np.mean(average_CS,axis=0),average_CS[i,:],"full")
-                lag = (np.argmax(c)-c.size/2)+.5
-                corrected_on[i]=int(j-lag)
-        else:     
-            corrected_on = cs_onset
-          
-        if cluster == False: # if only the realignment of onsets was needed
-            cs_onset = corrected_on
-            labels = {'cs_onset':cs_onset,
-                     'cs_offset':cs_offset}
-            if save == True:
-                print('saving '+output_file)
-                save_data(output_name,labels) 
-            return(cs_onset,cs_offset)
-        
-        average_CS2 = np.zeros((len(cs_onset),cluster_window[1]-cluster_window[0])) 
-        for i,j in enumerate(corrected_on):
-            ind = int(j)
-            average_CS2[i,:] = High_passed[ind+cluster_window[0]:ind+cluster_window[1]]
-        
-        average_prob = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
-        for i,j in enumerate(corrected_on):
-            ind = int(j)
-            average_prob[i,:] = Probability[ind+plot_window[0]:ind+plot_window[1]]
-            
-        average_LFP = np.zeros((len(cs_onset),cluster_window[1]-cluster_window[0]))
-        for i,j in enumerate(corrected_on):
-            ind = int(j)
-            average_LFP[i,:] = LFP[ind+cluster_window[0]:ind+cluster_window[1]]
-            
-        if plot:
-            average_CS_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
-            for i,j in enumerate(cs_onset):
-                ind = int(j)
-                average_CS_plot[i,:]=High_passed[ind+plot_window[0]:ind+plot_window[1]]
-            average_CS2_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
-            for i,j in enumerate(corrected_on):
-                ind = int(j)
-                average_CS2_plot[i,:]=High_passed[ind+plot_window[0]:ind+plot_window[1]]
-            average_LFP_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
-            for i,j in enumerate(corrected_on):
-                ind = int(j)
-                average_LFP_plot[i,:] = LFP[ind+plot_window[0]:ind+plot_window[1]]
-            
-            
-            u = np.random.permutation(i)[:np.round(i/2).astype(int)]
-            fig = plt.figure()
-            ax1 = plt.subplot(411)
-            ax2 = plt.subplot(412)
-            for z in u:
-                ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS_plot[z,:],c = 'k',Linewidth = 0.1)
-                ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z,:],c = 'k',Linewidth = 0.1)
-            plt.show()
-            #fig.savefig('realignment.pdf')
-        # dimensionality reduction using UMAP
-        n_neighbors = 15
-        if np.shape(average_CS2)[0]<n_neighbors: # exit if the number of complex spike detected is too small
-          labels = {'cs_onset': [],
+    if len(cs_onset) == 0:
+        labels = {'cs_onset': [],
                    'cs_offset': [],
                    'cluster_ID': [],
                  'embedding': []}
-          if save == True:
+        if output_name != None:
             print('saving '+output_name)
             save_data(output_name,labels)
-            return([],[],[],[])
-            return
-        embedding = umap.UMAP(n_neighbors = n_neighbors , min_dist=0.00001) 
-        embedding = embedding.fit_transform(np.concatenate((average_CS2, average_LFP), axis=1))
+        return(labels)
+    else : 
+    ######################################## 
+    # post processing
+    ########################################
     
-        # clustering
-        clustering = hdbscan.HDBSCAN(allow_single_cluster=True)
-        clustering = clustering.fit(embedding)
+    
+    # align each complex spike to the overall average
+    
+    average_CS = np.zeros((len(cs_onset),alignment_window[1]-alignment_window[0]))
+    for i,j in enumerate(cs_onset):
+        average_CS[i,:]=High_passed[j+alignment_window[0]:j+alignment_window[1]]
+    
+    norm_signal = np.median(np.abs(High_passed))/0.6745
+    corrected_on=np.zeros((len(cs_onset),1))
+    
+    if realign:
+        for i,j in enumerate(cs_onset):
+            
+            c=np.correlate(np.mean(average_CS,axis=0),average_CS[i,:],"full")
+            lag = (np.argmax(c)-c.size/2)+.5
+            corrected_on[i]=int(j-lag)
+    else:     
+        corrected_on = cs_onset
+      
+    if cluster == False: # if only the realignment of onsets was needed
+        cs_onset = corrected_on
+        labels = {'cs_onset':cs_onset,
+                 'cs_offset':cs_offset}
+        if output_name != None:
+            print('saving '+output_file)
+            save_data(output_name,labels) 
+        return(labels)
+    
+    average_CS2 = np.zeros((len(cs_onset),cluster_window[1]-cluster_window[0])) 
+    for i,j in enumerate(corrected_on):
+        ind = int(j)
+        average_CS2[i,:] = High_passed[ind+cluster_window[0]:ind+cluster_window[1]]
+    
+    average_prob = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
+    for i,j in enumerate(corrected_on):
+        ind = int(j)
+        average_prob[i,:] = Probability[ind+plot_window[0]:ind+plot_window[1]]
+        
+    average_LFP = np.zeros((len(cs_onset),cluster_window[1]-cluster_window[0]))
+    for i,j in enumerate(corrected_on):
+        ind = int(j)
+        average_LFP[i,:] = LFP[ind+cluster_window[0]:ind+cluster_window[1]]
+    
+    max_prob = np.zeros((len(cs_onset),1))
+    for i,j in enumerate(corrected_on):
+        ind = int(j)
+        max_prob[i] = average_prob[ind+veto_wind[0]:ind+veto_wind[1]]
+        
+    if plot:
+        average_CS_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
+        for i,j in enumerate(cs_onset):
+            ind = int(j)
+            average_CS_plot[i,:]=High_passed[ind+plot_window[0]:ind+plot_window[1]]
+        average_CS2_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
+        for i,j in enumerate(corrected_on):
+            ind = int(j)
+            average_CS2_plot[i,:]=High_passed[ind+plot_window[0]:ind+plot_window[1]]
+        average_LFP_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
+        for i,j in enumerate(corrected_on):
+            ind = int(j)
+            average_LFP_plot[i,:] = LFP[ind+plot_window[0]:ind+plot_window[1]]
         
         
-        # keep all cluster of waveforms for which the average predictive probability lasts at least 3 ms
-          
-        tree = clustering.single_linkage_tree_.to_pandas()
-        penultimate = np.sort(tree['size'])[-3]
-        last = np.sort(tree['size'])[-2]
-        distance =np.concatenate((np.array(tree['distance'][tree['size']==penultimate]), np.array(tree['distance'][tree['size']==last])), axis=None).mean()
-        labels_big = clustering.single_linkage_tree_.get_clusters(distance,min_cluster_size=0)
-        
-        
-        include = np.zeros((1,len(cs_onset))).astype(bool)[0]
-        good_CS = []
+        u = np.random.permutation(i)[:np.round(i/2).astype(int)]
+        fig = plt.figure()
+        ax1 = plt.subplot(411)
+        ax2 = plt.subplot(412)
+        for z in u:
+            ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS_plot[z,:],c = 'k',Linewidth = 0.1)
+            ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z,:],c = 'k',Linewidth = 0.1)
+        plt.show()
+        #fig.savefig('realignment.pdf')
+    # dimensionality reduction using UMAP
+    n_neighbors = 15
+    if np.shape(average_CS2)[0]<n_neighbors: # exit if the number of complex spike detected is too small
+        labels = {'cs_onset': [],
+                 'cs_offset': [],
+                 'cluster_ID': [],
+               'embedding': [],
+               'max_prob': []}
+        if output_name!= None:
+            print('saving '+output_name)
+            save_data(output_name,labels)
+        return(labels)
+    
+    embedding = umap.UMAP(n_neighbors = n_neighbors , min_dist=0.00001) 
+    embedding = embedding.fit_transform(np.concatenate((average_CS2, average_LFP), axis=1))
+
+    # clustering
+    clustering = hdbscan.HDBSCAN(allow_single_cluster=True)
+    clustering = clustering.fit(embedding)
+    
+    
+    # keep all cluster of waveforms for which the average predictive probability lasts at least "exlude_w" ms
+      
+    tree = clustering.single_linkage_tree_.to_pandas()
+    penultimate = np.sort(tree['size'])[-3]
+    last = np.sort(tree['size'])[-2]
+    distance =np.concatenate((np.array(tree['distance'][tree['size']==penultimate]), np.array(tree['distance'][tree['size']==last])), axis=None).mean()
+    labels_big = clustering.single_linkage_tree_.get_clusters(distance,min_cluster_size=0)
+    
+    
+    include = np.zeros((1,len(cs_onset))).astype(bool)[0]
+    good_CS = []
+    if plot:
+        colors = cmap(np.linspace(0, 1.0, len(np.unique(labels_big))))
+        fig = plt.figure()
+        ax0 = plt.subplot(311)
+        ax1 = plt.subplot(312)
+        ax2 = plt.subplot(313)
+    for i,lab in enumerate(np.unique(labels_big)):
+        good_CS.append((sum((np.mean(average_prob[labels_big==lab,:],axis = 0)>.5).astype(float))/samp)>exlude_w)
+        if good_CS[i]:
+            include[labels_big==lab] = True
         if plot:
-            colors = cmap(np.linspace(0, 1.0, len(np.unique(labels_big))))
-            fig = plt.figure()
-            ax0 = plt.subplot(311)
-            ax1 = plt.subplot(312)
-            ax2 = plt.subplot(313)
-        for i,lab in enumerate(np.unique(labels_big)):
-            good_CS.append((sum((np.mean(average_prob[labels_big==lab,:],axis = 0)>.5).astype(float))/samp)>3)
-            if good_CS[i]:
-                include[labels_big==lab] = True
-            if plot:
-                if plot_only_good == True:
-                    if good_CS[i]:
-                        u = np.argwhere(labels_big==lab)
-                        u = np.random.permutation(u)[:np.round(len(u)/2).astype(int)]
-                        for z in u:
-                            ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i], Linewidth = 0.1)
-                            ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i], Linewidth = 0.1)
-                            ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
-                                      np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                       
-                        ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
-                                 np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                        ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_prob[labels_big==lab,:],axis = 0), c = colors[i])
-                else:
+            if plot_only_good == True:
+                if good_CS[i]:
                     u = np.argwhere(labels_big==lab)
                     u = np.random.permutation(u)[:np.round(len(u)/2).astype(int)]
                     for z in u:
-                        ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i],Linewidth = 0.1)
-                        ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i],Linewidth = 0.1)
-                    
-                    ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
-                             np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                        ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i], Linewidth = 0.1)
+                        ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i], Linewidth = 0.1)
+                        ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                                  np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                   
                     ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
                              np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
-                    ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
-                             np.mean(average_prob[labels_big==lab,:],axis = 0),c = colors[i])
-                      
-        if plot:    
-            xlabel('time from CS onset (ms)',fontsize=15)
-            ylabel('Voltage (uV)',fontsize=15)
-            ax1.spines['top'].set_visible(False)
-            ax1.spines['right'].set_visible(False)
-            ax1.set_facecolor('none')
-            ax2.spines['top'].set_visible(False)
-            ax2.spines['right'].set_visible(False)
-            ax2.set_facecolor('none')
-            ax2.axis(ymin=0,ymax=1.01)
-            plt.show()
-            #fig.savefig('example.pdf')
-        
-        fig = plt.figure()
-        for i,lab in enumerate(np.unique(labels_big)):
-            if plot:
-                if plot_only_good == True:
-                    if good_CS[i]:
-                        plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
-                else:
-                    plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
-        #fig.savefig('dimensionality_reduction.pdf')
-        cs_onset = corrected_on[include];
-        cs_offset = cs_offset[include]
-        
-        cs_onset = cs_onset.astype('int')
-        cs_offset = cs_offset.astype('int')
+                    ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,np.mean(average_prob[labels_big==lab,:],axis = 0), c = colors[i])
+            else:
+                u = np.argwhere(labels_big==lab)
+                u = np.random.permutation(u)[:np.round(len(u)/2).astype(int)]
+                for z in u:
+                    ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z[0],:],c = colors[i],Linewidth = 0.1)
+                    ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_LFP_plot[z[0],:],c = colors[i],Linewidth = 0.1)
+                
+                ax0.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                         np.mean(average_LFP_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                ax1.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                         np.mean(average_CS2_plot[labels_big==lab,:],axis = 0),c = colors[i])
+                ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,
+                         np.mean(average_prob[labels_big==lab,:],axis = 0),c = colors[i])
+                  
+    if plot:    
+        xlabel('time from CS onset (ms)',fontsize=15)
+        ylabel('Voltage (uV)',fontsize=15)
+        ax1.spines['top'].set_visible(False)
+        ax1.spines['right'].set_visible(False)
+        ax1.set_facecolor('none')
+        ax2.spines['top'].set_visible(False)
+        ax2.spines['right'].set_visible(False)
+        ax2.set_facecolor('none')
+        ax2.axis(ymin=0,ymax=1.01)
+        plt.show()
+        #fig.savefig('example.pdf')
     
-        labels = {'cs_onset':cs_onset,
-                   'cs_offset':cs_offset,
-                   'cluster_ID': labels_big[include],
-                 'embedding': embedding[include,:]}
-        if save == True:
-            print('saving '+output_name)
-            save_data(output_name,labels)
-        return(cs_onset,cs_offset,labels_big[include],embedding[include,:])
-    else:
-        if save == True:
-            labels = {'cs_onset': [],
-                   'cs_offset': [],
-                   'cluster_ID': [],
-                 'embedding': []}
-            print('saving '+output_name)
-            save_data(output_name,labels)
-        return([],[],[],[])
+    fig = plt.figure()
+    for i,lab in enumerate(np.unique(labels_big)):
+        if plot:
+            if plot_only_good == True:
+                if good_CS[i]:
+                    plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
+            else:
+                plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
+    #fig.savefig('dimensionality_reduction.pdf')
+    cs_onset = corrected_on[include];
+    cs_offset = cs_offset[include]
+    
+    cs_onset = cs_onset.astype('int')
+    cs_offset = cs_offset.astype('int')
+
+    labels = {'cs_onset':cs_onset,
+               'cs_offset':cs_offset,
+               'cluster_ID': labels_big[include],
+             'embedding': embedding[include,:]}
+    if output_name != None:
+        print('saving '+output_name)
+        save_data(output_name,labels)
+    return(labels)
+    
     
     
