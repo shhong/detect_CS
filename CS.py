@@ -226,7 +226,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
             print('saving '+output_name)
             save_data(output_name,labels)
         return(labels)
-    else : 
+    
     ######################################## 
     # post processing
     ########################################
