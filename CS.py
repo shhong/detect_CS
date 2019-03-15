@@ -38,7 +38,7 @@ def get_field_mat(data,fields): # go through structure in a .mat file to find th
     if type(fields[0]) == list:
         if len(fields) == 0:
             return([])
-        for j in rang(len(fields)) # if the variable can have different names
+        for j in rang(len(fields)): # if the variable can have different names
             try:
                 for i,subfield in enumerate(fields[j]):
                     data = data[field]
