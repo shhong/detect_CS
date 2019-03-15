@@ -35,12 +35,22 @@ matplotlib.rcParams['ps.fonttype'] = 42
 
 
 def get_field_mat(data,fields): # go through structure in a .mat file to find the variable
-    if len(fields) > 0:
+    if type(fields[0]) == list:
+        if len(fields) == 0:
+            return([])
+        for j in rang(len(fields)) # if the variable can have different names
+            try:
+                for i,subfield in enumerate(fields[j]):
+                    data = data[field]
+                return(data)
+            except:
+                
+                
+    else:
         for i,field in enumerate(fields):
             data = data[field]
         return(data)
-    else :
-        return([])
+        
       
       
 def get_field_pkl(df,field): # get the variable in a panda dataframe
