@@ -41,7 +41,7 @@ def get_field_mat(data,fields): # go through structure in a .mat file to find th
         for j in range(len(fields)): # if the variable can have different names
             try:
                 for i,subfield in enumerate(fields[j]):
-                    data = data[field]
+                    data = data[subfield]
                 return(data)
             except:
                 print('trying an other field name')
