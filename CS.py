@@ -286,7 +286,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
     max_prob = np.zeros((len(cs_onset),1))
     for i,j in enumerate(corrected_on):
         ind = int(j)
-        max_prob[i] = average_prob[ind+veto_wind[0]:ind+veto_wind[1]]
+        max_prob[i] = np.mean(Probability[ind+veto_wind[0]:ind+veto_wind[1]])
         
     if plot:
         average_CS_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
