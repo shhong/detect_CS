@@ -35,16 +35,19 @@ matplotlib.rcParams['ps.fonttype'] = 42
 
 
 def get_field_mat(data,fields): # go through structure in a .mat file to find the variable
+    
+    if len(fields) == 0:
+        return([])
     if type(fields[0]) == list:
-        if len(fields) == 0:
-            return([])
         for j in range(len(fields)): # if the variable can have different names
             try:
+                data2 = data
                 for i,subfield in enumerate(fields[j]):
                     data = data[subfield]
                 return(data)
             except:
                 print('trying an other field name')
+                data = data2
     else:
         for i,field in enumerate(fields):
             data = data[field]
@@ -128,7 +131,7 @@ def save_data(output_file,labels):
         df.to_hdf(output_file, key='df', mode='w')
         
         
-def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good = True, sampling_frequency = 25000, ks=9,mp=7, realign = True, alignment_w = (-.5,2), cluster = True, cluster_w = (-2,2),plot = False, plot_w= (-4,8), exlude_w = 3):
+def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_frequency = 25000, ks=9,mp=7, realign = True, alignment_w = (-.5,2), cluster = True, cluster_w = (-2,2),plot = False, plot_w= (-4,8),plot_only_good = True, exlude_w = 3):
     # important arguments:
     # -filename is the filename path. If it is not defined then you should input the LFP and the High-passed signal
     # -weights_name is the path of the weight or just the name of the weight if it is stored in /training
@@ -145,8 +148,8 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
                    'cluster_ID': [],
                  'embedding': []}
         if output_name != None:
-            print('saving '+output_file)
-            save_data(output_name,labels) 
+            print('saving '+output_name)
+            save_data(output_name,labels)
         return([],[],[],[])
     
     trial_length = 1 #sec, length per "trial"
@@ -181,8 +184,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
         LFP_mat = LFP
         High_mat = High_passed
     # U'n'Eye
-    model = uneye.DNN(ks=ks,mp=mp,classes=2,
-                  weights_name=weights_name,sampfreq=sampling_frequency,min_sacc_dur=1,doDiff = False)
+    model = uneye.DNN(ks=ks,mp=mp,weights_name=weights_name,sampfreq=sampling_frequency,min_sacc_dur=1,doDiff = False)
     Pred,Prob = model.predict(LFP_mat,High_mat)
     
     if np.max(LFP.shape)>trial_length:
@@ -204,10 +206,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
         Probability = Prob
     cs_onset=np.argwhere(np.diff(Prediction)==1);
     cs_offset=np.argwhere(np.diff(Prediction)==-1);
-    max_prob = np.zeros((len(cs_onset),1))
-    for i,j in enumerate(corrected_on):
-        ind = int(j)
-        max_prob[i] = average_prob[ind+veto_wind[0]:ind+veto_wind[1]]
+    
     if cluster ==False & realign==False: # stop early if everything that is needed is the raw output from the network
         labels = {'cs_onset':cs_onset,
                    'cs_offset':cs_offset}
@@ -221,7 +220,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
     plot_window = (np.array([sampling_frequency*plot_w[0],sampling_frequency*plot_w[1]])/1000).astype(int) # plot between 4 ms before and 8 ms after CS onset
     
     veto_wind = [-10,10] #exlude CS detected around 10ms from the boundary of the signal
-    veto_wind = [min(veto_wind[0],plot_w[0]),max(plot_w[1],veto_wind[1])]
+    veto_wind = [min(sampling_frequency*veto_wind[0],plot_w[0]),max(plot_w[1],sampling_frequency*veto_wind[1])]
     # remove CS detected to close from the edges of the signal
     cs_offset = cs_offset[(cs_onset>sampling_frequency*(-plot_w[0])/1000) & (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
     cs_onset = cs_onset[(cs_onset>sampling_frequency*(-plot_w[0])/1000) & (cs_onset<len(Prediction)-sampling_frequency*plot_w[1]/1000)]
@@ -283,10 +282,11 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
         ind = int(j)
         average_LFP[i,:] = LFP[ind+cluster_window[0]:ind+cluster_window[1]]
     
-    max_prob = np.zeros((len(cs_onset),1))
+    max_prob = np.zeros((len(corrected_on),1))
     for i,j in enumerate(corrected_on):
         ind = int(j)
-        max_prob[i] = np.mean(Probability[ind+veto_wind[0]:ind+veto_wind[1]])
+        temp = Probability[ind+veto_wind[0]:ind+veto_wind[1]];
+        max_prob[i] = np.mean(temp[temp>.5])
         
     if plot:
         average_CS_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
@@ -393,9 +393,6 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
         ax2.set_facecolor('none')
         ax2.axis(ymin=0,ymax=1.01)
         plt.show()
-        #fig.savefig('example.pdf')
-    
-    fig = plt.figure()
     for i,lab in enumerate(np.unique(labels_big)):
         if plot:
             if plot_only_good == True:
@@ -403,7 +400,6 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
                     plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
             else:
                 plt.scatter(embedding[labels_big==lab,0],embedding[labels_big==lab,1],c = colors[i], edgecolors = 'face')
-    #fig.savefig('dimensionality_reduction.pdf')
     cs_onset = corrected_on[include];
     cs_offset = cs_offset[include]
     
@@ -413,7 +409,8 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None, plot_only_good
     labels = {'cs_onset':cs_onset,
                'cs_offset':cs_offset,
                'cluster_ID': labels_big[include],
-             'embedding': embedding[include,:]}
+             'embedding': embedding[include,:],
+             'pred_prob': max_prob[include]}
     if output_name != None:
         print('saving '+output_name)
         save_data(output_name,labels)
