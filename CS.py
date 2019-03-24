@@ -281,12 +281,6 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     for i,j in enumerate(corrected_on):
         ind = int(j)
         average_LFP[i,:] = LFP[ind+cluster_window[0]:ind+cluster_window[1]]
-    
-    max_prob = np.zeros((len(corrected_on),1))
-    for i,j in enumerate(corrected_on):
-        ind = int(j)
-        temp = Probability[ind+veto_wind[0]:ind+veto_wind[1]];
-        max_prob[i] = np.mean(temp[temp>.5])
         
     if plot:
         average_CS_plot = np.zeros((len(cs_onset),plot_window[1]-plot_window[0]))
@@ -318,8 +312,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
         labels = {'cs_onset': [],
                  'cs_offset': [],
                  'cluster_ID': [],
-               'embedding': [],
-               'max_prob': []}
+               'embedding': []}
         if output_name!= None:
             print('saving '+output_name)
             save_data(output_name,labels)
@@ -409,8 +402,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     labels = {'cs_onset':cs_onset,
                'cs_offset':cs_offset,
                'cluster_ID': labels_big[include],
-             'embedding': embedding[include,:],
-             'pred_prob': max_prob[include]}
+             'embedding': embedding[include,:]}
     if output_name != None:
         print('saving '+output_name)
         save_data(output_name,labels)
