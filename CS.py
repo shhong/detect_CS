@@ -120,7 +120,7 @@ def save_data(output_file,labels):
     filename_start, file_extension = os.path.splitext(output_file)
     if file_extension != '.mat':
         df = pd.DataFrame(columns = labels.keys())
-        keys = list(output.keys());
+        keys = list(labels.keys());
         for i in range(len(labels['cs_onset'])):
             temp1 = []
             for j in range(len(keys)):
