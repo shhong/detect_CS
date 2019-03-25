@@ -217,7 +217,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
         labels = {'cs_onset':cs_onset,
                    'cs_offset':cs_offset}
         if output_name != None:
-            print('saving '+output_file)
+            print('saving '+output_name)
             save_data(output_name,labels) 
         return(labels)
     
@@ -269,7 +269,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
         labels = {'cs_onset':cs_onset,
                  'cs_offset':cs_offset}
         if output_name != None:
-            print('saving '+output_file)
+            print('saving '+output_name)
             save_data(output_name,labels) 
         return(labels)
     
@@ -403,6 +403,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     cs_offset = cs_offset[include]
     
     cs_onset = cs_onset.astype('int')
+    cs_onset = np.concatenate(cs_onset)
     cs_offset = cs_offset.astype('int')
 
     labels = {'cs_onset':cs_onset,
