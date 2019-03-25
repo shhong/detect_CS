@@ -404,6 +404,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     cs_offset = cs_offset[include]
     
     cs_onset = cs_onset.astype('int')
+    cs_onset = np.concatenate(cs_onset)
     cs_offset = cs_offset.astype('int')
 
     labels = {'cs_onset':cs_onset,
