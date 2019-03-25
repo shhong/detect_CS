@@ -128,7 +128,7 @@ def save_data(output_file,labels):
             temp = pd.DataFrame([temp1], columns=keys)
             df = df.append(temp)
     if file_extension == '.pkl': 
-        df.to_pkl(output_file)
+        df.to_pickle(output_file)
     elif file_extension == '.mat':
         io.savemat(output_file,labels)
     elif file_extension == '.csv':
