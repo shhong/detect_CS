@@ -17,4 +17,5 @@ To train a network, clic on this link:
 https://colab.research.google.com/github/jobellet/detect_CS/blob/master/train_cs_detector.ipynb
 
 Step 3) Detect complex spikes  
-To detect complex spikes on your data, clic on this link  
+To detect complex spikes on your data, clic on this link:  
+https://colab.research.google.com/github/jobellet/detect_CS/blob/master/predict_cs.ipynb
