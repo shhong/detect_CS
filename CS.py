@@ -212,7 +212,8 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
         Probability = Prob
     cs_onset=np.argwhere(np.diff(Prediction)==1);
     cs_offset=np.argwhere(np.diff(Prediction)==-1);
-    
+    cs_onset = np.concatenate(cs_onset)
+    cs_offset = np.concatenate(cs_offset)
     if cluster ==False & realign==False: # stop early if everything that is needed is the raw output from the network
         labels = {'cs_onset':cs_onset,
                    'cs_offset':cs_offset}
@@ -403,7 +404,6 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     cs_offset = cs_offset[include]
     
     cs_onset = cs_onset.astype('int')
-    cs_onset = np.concatenate(cs_onset)
     cs_offset = cs_offset.astype('int')
 
     labels = {'cs_onset':cs_onset,
