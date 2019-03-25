@@ -118,16 +118,22 @@ def load_data(filename = [],field_LFP = [],field_high_pass = [], field_label = [
 
 def save_data(output_file,labels):
     filename_start, file_extension = os.path.splitext(output_file)
-    if file_extension == '.pkl':
-        df = pd.DataFrame(labels)
-        df.to_pkl(output_file,labels)
+    if file_extension != '.mat':
+        df = pd.DataFrame(columns = output.keys())
+        keys = list(output.keys());
+        for i in range(len(output['cs_onset'])):
+            temp1 = []
+            for j in range(len(keys)):
+                temp1.append(output[keys[j]][i])
+            temp = pd.DataFrame([temp1], columns=keys)
+            df = df.append(temp)
+    if file_extension == '.pkl': 
+        df.to_pkl(output_file)
     elif file_extension == '.mat':
         io.savemat(output_file,labels)
     elif file_extension == '.csv':
-        df = pd.DataFrame(labels)
-        df.to_csv(output_file,labels)
+        df.to_csv(output_file)
     elif file_extension == '.h5' :
-        df = pd.DataFrame(labels)
         df.to_hdf(output_file, key='df', mode='w')
         
         
