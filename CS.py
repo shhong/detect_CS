@@ -49,8 +49,6 @@ def get_field_mat(data,fields): # go through structure in a .mat file to find th
                 print('trying an other field name')
                 data = data2
     else:
-        for i,field in enumerate(fields):
-            data = data[field]
         return(data)
         
       
