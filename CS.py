@@ -130,7 +130,10 @@ def save_data(output_file,labels):
         df.to_hdf(output_file, key='df', mode='w')
 
 
-def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_frequency = 25000, ks=9,mp=7, realign = True, alignment_w = (-.5,2), cluster = True, cluster_w = (-2,2),plot = False, plot_w= (-4,8),plot_only_good = True, exlude_w = 3):
+def predict_CS(
+        weights_name, LFP, High_passed,
+        sampling_frequency = 25000, ks=9, mp=7
+    ):
     """
     important arguments:
     - filename is the filename path. If it is not defined then you should input the LFP and the High-passed signal
@@ -138,20 +141,19 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     - sampling_frequency is the sampling frequency of the signal analysed
 
     ks and mp are the size of the kernel and max pooling operations respectively."""
-    if plot:
-        cmap = plt.get_cmap('jet')
 
     samp  = int(sampling_frequency/1000) # Khz
 
     if len(LFP)==0 or len(High_passed)==0: # if one signal is missing abort
-        labels = {'cs_onset': [],
-                   'cs_offset': [],
-                   'cluster_ID': [],
-                 'embedding': []}
-        if output_name != None:
-            print('saving '+output_name)
-            save_data(output_name,labels)
-        return([],[],[],[])
+        raise RuntimeError('LFP or High_passed is missing')
+        # labels = {'cs_onset': [],
+        #            'cs_offset': [],
+        #            'cluster_ID': [],
+        #          'embedding': []}
+        # if output_name != None:
+        #     print('saving '+output_name)
+        #     save_data(output_name,labels)
+        # return([],[],[],[])
 
     trial_length = 1 #sec, length per "trial"
     trial_length *= samp*1000
@@ -205,6 +207,16 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
     else:
         Prediction = Pred
         Probability = Prob
+
+    return (Probability, Prediction)
+
+def post_proc1(
+        Probability, Prediction, LFP, High_passed,
+        sampling_frequency = 25000,
+        output_name=None, realign = True, alignment_w = (-.5,2),
+        cluster = True, cluster_w = (-2,2),
+        plot = False, plot_w= (-4,8),plot_only_good = True, exlude_w = 3
+    ):
 
     cs_onset=np.argwhere(np.diff(Prediction)==1)
     cs_offset=np.argwhere(np.diff(Prediction)==-1)
@@ -311,6 +323,7 @@ def detect_CS(weights_name, LFP, High_passed, output_name = None,  sampling_freq
             ax2.plot(np.arange(plot_window[0],plot_window[1])/sampling_frequency*1000,average_CS2_plot[z,:],c = 'k',Linewidth = 0.1)
         plt.show()
         #fig.savefig('realignment.pdf')
+
     # dimensionality reduction using UMAP
     n_neighbors = 15
     if np.shape(average_CS2)[0]<n_neighbors: # exit if the number of complex spike detected is too small
